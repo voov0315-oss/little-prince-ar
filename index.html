@@ -3,93 +3,122 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#102a4c" />
-    <meta name="description" content="거북섬 어린왕자 AR 보물찾기" />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="poster.css" />
     <title>거북섬 어린왕자 AR 보물찾기</title>
+    
+    <!-- A-Frame 및 MindAR 이미지 인식 라이브러리 -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      
+      /* 상단 안내 바 */
+      .ar-ui-top {
+        position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; background: rgba(16, 43, 75, 0.85); color: #fff;
+        padding: 10px 20px; border-radius: 25px; font-size: 14px;
+        text-align: center; border: 1px solid #e8ad37; backdrop-filter: blur(4px);
+      }
+
+      /* 미션 완료 알림 모달 */
+      .mission-modal {
+        display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; width: 85%; max-width: 380px; background: #fffaf0;
+        border: 2px solid #e8ad37; border-radius: 20px; padding: 20px;
+        text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      }
+      .mission-modal h2 { margin: 0 0 8px; color: #102b4b; font-size: 20px; }
+      .mission-modal p { margin: 0 0 16px; color: #555; font-size: 13px; line-height: 1.5; }
+      .mission-modal button {
+        background: linear-gradient(135deg, #173a61, #285b7d); color: #fff;
+        border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold;
+        font-size: 14px; cursor: pointer; width: 100%;
+      }
+    </style>
   </head>
   <body>
-    <div class="sky" aria-hidden="true"></div>
-    <main class="app-shell">
-      <section class="screen home-screen poster-home is-active" id="home" aria-labelledby="home-title">
-        <header class="poster-topbar"><div class="brand-line"><span class="tiny-planet">◌</span> 어린왕자의 보물찾기</div><div class="event-meta">2026. 09. 12 &nbsp;·&nbsp; 시흥 거북섬</div></header>
-        <div class="poster-title-row"><div><p class="poster-kicker">GEOBUKSEOM LITTLE PRINCE AR EVENT</p><h1 id="home-title">어린왕자 <em>AR 보물찾기</em></h1><p class="poster-lead">거북섬 곳곳에 설치된 6개의 마커 이미지를 스마트폰으로 찍으면<br />AR 보물이 나타납니다. 어린왕자와 함께 별빛 여행을 떠나 보세요!</p></div><button class="sound-control poster-sound" id="soundToggle" aria-pressed="false">♬ 배경음악 켜기</button></div>
-        <div class="poster-grid">
-          <aside class="marker-board"><div class="section-label"><span>✦</span> 오늘의 보물 마커</div><img src="assets/six-zone-markers.png" alt="ZONE 01부터 ZONE 06까지의 어린왕자 행사 마커" /><div class="print-note"><span>▣</span><p><strong>이 마커 이미지를 현장 곳곳에서 찾아보세요.</strong><br />안전한 장소에 설치된 마커만 촬영해요.</p></div></aside>
-          <section class="experience-board" aria-label="AR 체험 안내"><div class="steps-intro"><article><span class="step-icon">◉</span><div><strong>마커 이미지 촬영</strong><p>현장에 설치된 마커를<br />카메라에 담아 주세요.</p></div></article><i></i><article><span class="step-icon cube">◇</span><div><strong>AR 보물 등장</strong><p>마커를 인식하면<br />별빛 보물이 나타나요.</p></div></article><i></i><article><span class="step-icon gift">✦</span><div><strong>미션 완료 & 보물 획득</strong><p>스탬프 2개를 모아<br />직원에게 보여 주세요.</p></div></article></div><div class="phone-flow"><article><div class="flow-phone scan-mini"><span>ZONE 01</span><b>별빛 안내자</b><i>◉</i></div><p><b>1. 마커 인식</b><br />카메라로 마커를 스캔하면<br />AR이 활성화됩니다.</p></article><span class="flow-arrow">›</span><article><div class="flow-phone chest-mini">✦<span>보물상자</span><b>♜</b></div><p><b>2. 보물 등장</b><br />마커 위에 보물 상자가<br />나타납니다.</p></article><span class="flow-arrow">›</span><article><div class="flow-phone mission-mini"><span>별의 보물 미션</span><b>★</b><i>미션을 확인해요</i></div><p><b>3. 미션 수행</b><br />간단한 퀴즈 또는 미션을<br />완료해요.</p></article><span class="flow-arrow">›</span><article><div class="flow-phone stamp-mini"><span>미션 성공!</span><b>♜</b><i>별빛 보물을<br />획득했어요!</i></div><p><b>4. 보물 획득</b><br />보물을 획득하고<br />스탬프를 받아요.</p></article></div><div class="staff-capture-banner"><span class="capture-icon">▣</span><p><strong>보물 스탬프 2개를 모으면 인증서가 열려요!</strong><br /><b>인증서 화면을 캡처</b>해서 현장 직원에게 보여 주세요.</p></div></section>
-        </div>
-        <div class="poster-footer"><p>거북섬에서, 어린왕자와 함께<br /><b>잊지 못할 별빛 보물찾기 여행</b>을 떠나보세요.</p><button class="guide-cta" data-go="guide">▤&nbsp; 자세한 이용 방법 보기 <span>→</span></button><button class="primary-button start-button" id="startJourney"><span class="camera-icon">◉</span> 지금 보물찾기 시작하기</button></div>
-      </section>
 
-      <section class="screen scanner-screen" id="scanner" aria-labelledby="scanner-title">
-        <header class="screen-header"><button class="icon-button" data-go="home" aria-label="처음으로">‹</button><p>AR 보물찾기</p><button class="music-mini" id="miniSound" aria-label="배경음악 켜기">♬</button></header>
-        <div class="scan-copy"><p class="eyebrow">STEP 1</p><h2 id="scanner-title">신비한 마커를<br />카메라에 담아 보세요</h2><p>현장에 붙어 있는 ZONE 01–06 카드를 찾아<br />테두리 안에 맞춰 주세요.</p></div>
-        <div class="camera-stage" id="cameraStage">
-          <video id="camera" autoplay playsinline muted></video>
-          <div class="camera-placeholder" id="cameraPlaceholder"><span>⌁</span><strong>카메라를 준비하고 있어요</strong><small>카메라 사용을 허용해 주세요</small></div>
-          <div class="scan-frame" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
-          <div class="scan-status" id="scanStatus">마커를 찾아주세요</div>
-        </div>
-        <button class="primary-button" id="openCamera">카메라 열기</button>
-        <p class="demo-caption">인식이 어려우면 아래에서 발견한 존을 선택해도 돼요.</p>
-        <div class="zone-picker" id="zonePicker" aria-label="존 선택"></div>
-        <button class="guide-link" data-go="guide">마커와 이용 방법 보기</button>
-      </section>
+    <div class="ar-ui-top" id="uiStatus">
+      ✦ 현장의 어린왕자 마커 이미지를 비춰주세요 ✦
+    </div>
 
-      <section class="screen treasure-screen" id="treasure" aria-labelledby="treasure-title">
-        <header class="screen-header"><button class="icon-button" data-go="scanner" aria-label="스캔으로">‹</button><p id="treasureZone">ZONE 01</p><button class="music-mini" id="treasureSound" aria-label="배경음악 켜기">♬</button></header>
-        <div class="treasure-scene">
-          <div class="spark s1">✦</div><div class="spark s2">✧</div><div class="spark s3">★</div><div class="spark s4">✦</div>
-          <div class="treasure-chest" id="chest" role="img" aria-label="열 수 있는 보물 상자"><div class="chest-lid"></div><div class="chest-body"><span>★</span></div></div>
-        </div>
-        <p class="eyebrow">FOUND!</p><h2 id="treasure-title">별빛 안내자를<br />찾았어요!</h2><p class="treasure-description" id="treasureDescription">보물 상자를 열어 어린왕자의 이야기를 만나 보세요.</p>
-        <button class="primary-button" id="openTreasure">보물 상자 열기</button>
-      </section>
+    <!-- 미션 완료 팝업 UI -->
+    <div class="mission-modal" id="missionModal">
+      <h2>🎉 미션 완료!</h2>
+      <p>어린왕자의 인사를 받았습니다.<br>보물 스탬프가 지급되었습니다!</p>
+      <button id="btnComplete">스탬프 보관함 확인하기</button>
+    </div>
 
-      <section class="screen ar-screen" id="ar" aria-labelledby="ar-title">
-        <header class="screen-header"><span></span><p>어린왕자의 메시지</p><button class="music-mini" id="arSound" aria-label="배경음악 켜기">♬</button></header>
-        <div class="ar-stage" id="arStage" aria-hidden="true">
-          <div class="ar-glow"></div><span class="ar-star star-a">★</span><span class="ar-star star-b">✦</span><span class="ar-star star-c">✧</span><span class="ar-star star-d">✦</span>
-          <div class="little-prince"><span class="lp-head"></span><span class="lp-scarf"></span><span class="lp-body"></span></div>
-          <div class="rose" id="arRose"><i></i><i></i><i></i><i></i><b></b></div>
-          <p class="ar-label">AR STORY PLAYING</p>
-        </div>
-        <div class="story-card"><p class="eyebrow">AR MESSAGE</p><h2 id="ar-title">“가장 중요한 것은<br />눈에 보이지 않아.”</h2><p id="storyText">별빛이 길을 안내해 줄 거야. 다음 보물도 찾아볼래?</p></div>
-        <button class="primary-button" id="collectStamp">보물 스탬프 받기</button>
-      </section>
+    <!-- AR 씬 설정: targets.mind 파일의 이미지를 추적 -->
+    <a-scene 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;" 
+      color-space="sRGB" 
+      embedded 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+        <!-- 재생할 어린왕자 인사 영상 -->
+        <video id="princeVideo" src="prince-hello.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
+      </a-assets>
 
-      <section class="screen stamp-screen" id="stamps" aria-labelledby="stamp-title">
-        <header class="screen-header"><button class="icon-button" data-go="home" aria-label="처음으로">‹</button><p>나의 보물 지도</p><button class="music-mini" id="stampSound" aria-label="배경음악 켜기">♬</button></header>
-        <p class="eyebrow">MY TREASURE</p><h2 id="stamp-title">보물 스탬프를<br />모아 보세요</h2>
-        <div class="progress-wrap"><div class="progress-copy"><span><strong id="stampCount">0</strong> / 2개 찾음</span><span id="progressMessage">보물 2개를 찾으면 인증서가 열려요!</span></div><div class="progress-track"><i id="progressBar"></i></div></div>
-        <div class="stamp-groups">
-          <article class="stamp-group starlight"><div class="stamp-heading"><span class="stamp-icon">★</span><div><h3>별빛 스탬프</h3><p>ZONE 01 ~ 03</p></div></div><div class="mini-stamps" id="starStamps"></div></article>
-          <article class="stamp-group rose-group"><div class="stamp-heading"><span class="stamp-icon">✿</span><div><h3>장미 스탬프</h3><p>ZONE 04 ~ 06</p></div></div><div class="mini-stamps" id="roseStamps"></div></article>
-        </div>
-        <button class="primary-button" id="certificateButton" disabled>직원 확인용 인증서 보기</button>
-        <button class="outline-button" data-go="scanner">다음 보물 찾기</button>
-      </section>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <section class="screen certificate-screen" id="certificate" aria-labelledby="certificate-title">
-        <header class="screen-header"><button class="icon-button" data-go="stamps" aria-label="스탬프로">‹</button><p>미션 완료</p><span></span></header>
-        <div class="certificate-card" id="certificateCard">
-          <div class="cert-stars">✦　★　✧</div><p class="eyebrow">GEOBUKSEOM AR TREASURE HUNT</p><h2 id="certificate-title">보물찾기<br /><em>완료 인증서</em></h2><p class="cert-copy">어린왕자와 함께 거북섬의<br />보물 <strong id="certCount">2</strong>개를 찾았어요!</p><div class="cert-seal">✓<span>MISSION<br />COMPLETE</span></div><p class="cert-date">2026. 09. 12 · 시흥 거북섬</p></div>
-        <div class="staff-notice"><span class="staff-notice-icon">▣</span><div><strong>꼭 확인해 주세요!</strong><p><b>이 완료 인증서 화면을 캡처</b>해서<br />현장 직원에게 보여 주세요.<br /><em>직원 확인 후 선물을 받을 수 있어요.</em></p></div></div>
-        <button class="primary-button" id="saveCertificate">인증서 이미지로 저장하기</button>
-        <button class="outline-button" data-go="scanner">보물 더 찾기</button>
-      </section>
+      <!-- 0번 타깃(ZONE 01 이미지) 인식 시 비디오 평면 표시 -->
+      <a-entity id="targetMarker" mindar-image-target="targetIndex: 0">
+        <!-- 마커 이미지 위에 띄울 16:9 영상 평면 -->
+        <a-video 
+          src="#princeVideo" 
+          position="0 0 0" 
+          height="1" 
+          width="1" 
+          rotation="0 0 0">
+        </a-video>
+      </a-entity>
+    </a-scene>
 
-      <section class="screen guide-screen" id="guide" aria-labelledby="guide-title">
-        <header class="screen-header"><button class="icon-button" data-go="home" aria-label="처음으로">‹</button><p>이용 방법</p><span></span></header>
-        <p class="eyebrow">HOW TO PLAY</p><h2 id="guide-title">어린왕자와 함께하는<br />보물찾기</h2>
-        <ol class="how-list"><li><span>1</span><div><strong>마커를 찾아요</strong><p>거북섬 곳곳의 ZONE 마커를 찾아 주세요.</p></div></li><li><span>2</span><div><strong>카메라로 스캔해요</strong><p>마커 전체가 네모 안에 들어오게 찍어 주세요.</p></div></li><li><span>3</span><div><strong>보물과 이야기를 만나요</strong><p>보물 상자를 열면 AR 어린왕자가 나타나요.</p></div></li><li><span>4</span><div><strong>스탬프 2개를 모아요</strong><p>인증서를 캡처해 직원에게 보여 주세요.</p></div></li></ol>
-        <div class="marker-reference"><img src="assets/six-zone-markers.png" alt="ZONE 01부터 ZONE 06까지의 어린왕자 행사 마커" /><p>현장에는 위와 같은 ZONE 마커가 설치되어 있어요.</p></div>
-        <button class="primary-button" data-go="scanner">보물 찾으러 가기</button>
-      </section>
-    </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js"></script>
+    <script>
+      const marker = document.querySelector('#targetMarker');
+      const video = document.querySelector('#princeVideo');
+      const uiStatus = document.querySelector('#uiStatus');
+      const missionModal = document.querySelector('#missionModal');
+      const btnComplete = document.querySelector('#btnComplete');
+
+      let isMissionFinished = false;
+
+      // 마커 이미지가 카메라에 감지되었을 때
+      marker.addEventListener('targetFound', () => {
+        uiStatus.textContent = '🌟 마커 인식 성공! 어린왕자가 인사합니다.';
+        video.muted = false; // 소리 활성화
+        video.play();
+
+        // 3초 후 미션 완료 팝업 표시 및 스탬프 적립
+        if (!isMissionFinished) {
+          setTimeout(() => {
+            isMissionFinished = true;
+            missionModal.style.display = 'block';
+
+            // 스탬프 저장 처리
+            let collected = JSON.parse(localStorage.getItem('geobukseom-stamps') || '[]');
+            if (!collected.includes(1)) {
+              collected.push(1);
+              localStorage.setItem('geobukseom-stamps', JSON.stringify(collected));
+            }
+          }, 3000);
+        }
+      });
+
+      // 마커가 시야에서 벗어났을 때
+      marker.addEventListener('targetLost', () => {
+        uiStatus.textContent = '✦ 마커 이미지를 카메라에 맞춰주세요 ✦';
+        video.pause();
+      });
+
+      // 완료 버튼 터치 시 스탬프/인증서 화면 등으로 이동
+      btnComplete.addEventListener('click', () => {
+        alert('보물 스탬프가 성공적으로 기록되었습니다!');
+      });
+    </script>
   </body>
 </html>
