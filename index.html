@@ -13,7 +13,7 @@
   <body>
     <div class="sky" aria-hidden="true"></div>
     <main class="app-shell">
-      <!-- 1. 홈 화면 (행사 포스터) -->
+      <!-- 1. 홈 화면 (포스터) -->
       <section class="screen home-screen poster-home is-active" id="home" aria-labelledby="home-title">
         <header class="poster-topbar">
           <div class="brand-line"><span class="tiny-planet">◌</span> 어린왕자의 보물찾기</div>
@@ -61,12 +61,14 @@
         </div>
         <div class="poster-footer">
           <p>거북섬에서, 어린왕자와 함께<br /><b>잊지 못할 별빛 보물찾기 여행</b>을 떠나보세요.</p>
-          <button class="guide-cta" data-go="guide">▤&nbsp; 자세한 이용 방법 보기 <span>→</span></button>
-          <button class="primary-button start-button" id="startJourney"><span class="camera-icon">◉</span> 지금 보물찾기 시작하기</button>
+          <div class="poster-footer-buttons">
+            <button class="guide-cta" data-go="guide">▤&nbsp; 이용 방법 보기</button>
+            <button class="primary-button start-button" id="startJourney"><span class="camera-icon">◉</span> 보물찾기 시작</button>
+          </div>
         </div>
       </section>
 
-      <!-- 2. 카메라 스캔 화면 -->
+      <!-- 2. 카메라 스캐너 화면 -->
       <section class="screen scanner-screen" id="scanner" aria-labelledby="scanner-title">
         <header class="screen-header">
           <button class="icon-button" data-go="home" aria-label="처음으로">‹</button>
@@ -80,6 +82,8 @@
         </div>
         <div class="camera-stage" id="cameraStage">
           <video id="camera" autoplay playsinline muted></video>
+          <!-- 마커 특징 분석용 숨김 캔버스 -->
+          <canvas id="analysisCanvas" style="display:none;"></canvas>
           <div class="camera-placeholder" id="cameraPlaceholder">
             <span>⌁</span>
             <strong>카메라를 준비하고 있어요</strong>
@@ -89,7 +93,7 @@
           <div class="scan-status" id="scanStatus">마커를 네모 안에 맞춰주세요</div>
         </div>
         <button class="primary-button" id="openCamera">카메라 열기</button>
-        <p class="demo-caption">현장 마커를 발견했다면 해당 ZONE을 터치하세요.</p>
+        <p class="demo-caption">인식이 지연될 경우 하단 ZONE 번호를 직접 터치해도 진행됩니다.</p>
         <div class="zone-picker" id="zonePicker" aria-label="존 선택"></div>
         <button class="guide-link" data-go="guide">마커와 이용 방법 보기</button>
       </section>
@@ -114,20 +118,20 @@
         <button class="primary-button" id="openTreasure">보물 상자 열기</button>
       </section>
 
-      <!-- 4. AR 어린왕자 등장 & 영상 메시지 화면 -->
+      <!-- 4. AR 어린왕자 영상 메시지 화면 -->
       <section class="screen ar-screen" id="ar" aria-labelledby="ar-title">
         <header class="screen-header">
           <span></span>
           <p>어린왕자의 메시지</p>
           <button class="music-mini" id="arSound" aria-label="배경음악 켜기">♬</button>
         </header>
-        <div class="ar-stage" id="arStage">
-          <!-- 비디오 파일이 준비되면 자동 재생되는 비디오 영역 -->
-          <video id="princeVideo" src="prince-hello.mp4" playsinline webkit-playsinline loop style="display:none; width:100%; height:100%; object-fit:cover; position:absolute; inset:0; z-index:4;"></video>
+        <div class="ar-stage" id="arStage" style="position:relative; overflow:hidden;">
+          <!-- 어린왕자 영상 (저장소에 prince-hello.mp4가 있으면 영상으로 표시, 없으면 예쁜 애니메이션으로 자동 폴백) -->
+          <video id="princeVideo" src="prince-hello.mp4" playsinline webkit-playsinline loop muted style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:3; display:none;"></video>
           
           <div class="ar-glow"></div>
           <span class="ar-star star-a">★</span><span class="ar-star star-b">✦</span><span class="ar-star star-c">✧</span><span class="ar-star star-d">✦</span>
-          <div class="little-prince"><span class="lp-head"></span><span class="lp-scarf"></span><span class="lp-body"></span></div>
+          <div class="little-prince" id="lpGraphic"><span class="lp-head"></span><span class="lp-scarf"></span><span class="lp-body"></span></div>
           <div class="rose" id="arRose"><i></i><i></i><i></i><i></i><b></b></div>
           <p class="ar-label">AR STORY PLAYING</p>
         </div>
@@ -139,7 +143,7 @@
         <button class="primary-button" id="collectStamp">보물 스탬프 받기 (미션 완료)</button>
       </section>
 
-      <!-- 5. 스탬프 보관함 화면 -->
+      <!-- 5. 스탬프북 -->
       <section class="screen stamp-screen" id="stamps" aria-labelledby="stamp-title">
         <header class="screen-header">
           <button class="icon-button" data-go="home" aria-label="처음으로">‹</button>
@@ -195,7 +199,7 @@
         <button class="outline-button" data-go="scanner">보물 더 찾기</button>
       </section>
 
-      <!-- 7. 이용 방법 안내 화면 -->
+      <!-- 7. 이용 방법 안내 -->
       <section class="screen guide-screen" id="guide" aria-labelledby="guide-title">
         <header class="screen-header">
           <button class="icon-button" data-go="home" aria-label="처음으로">‹</button>
@@ -206,8 +210,8 @@
         <h2 id="guide-title">어린왕자와 함께하는<br />보물찾기</h2>
         <ol class="how-list">
           <li><span>1</span><div><strong>마커를 찾아요</strong><p>거북섬 곳곳의 ZONE 마커를 찾아 주세요.</p></div></li>
-          <li><span>2</span><div><strong>카메라로 스캔해요</strong><p>마커 전체가 네모 안에 들어오게 찍어 주세요.</p></div></li>
-          <li><span>3</span><div><strong>보물과 이야기를 만나요</strong><p>보물 상자를 열면 AR 어린왕자가 나타나요.</p></div></li>
+          <li><span>2</span><div><strong>카메라로 스캔해요</strong><p>카메라를 비추면 마커를 자동으로 인식합니다.</p></div></li>
+          <li><span>3</span><div><strong>어린왕자 영상을 만나요</strong><p>보물 상자를 열면 어린왕자가 인사합니다.</p></div></li>
           <li><span>4</span><div><strong>스탬프 2개를 모아요</strong><p>인증서를 캡처해 직원에게 보여 주세요.</p></div></li>
         </ol>
         <div class="marker-reference">
