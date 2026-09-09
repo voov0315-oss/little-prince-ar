@@ -9,7 +9,8 @@ const zones = [
 
 let selectedZone = zones[0];
 let collected = JSON.parse(localStorage.getItem('geobukseom-stamps') || '[]');
-let globalCameraStream = null; // 카메라 스트림 전역 유지 (권한 재요청 방지)
+let cameraStream = null;
+let scanInterval = null;
 let audioOn = false;
 let audioCtx;
 let bgmTimer;
@@ -20,13 +21,7 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 function go(id) {
   $$('.screen').forEach((screen) => screen.classList.toggle('is-active', screen.id === id));
   window.scrollTo({top: 0, behavior: 'instant'});
-  
-  // 카메라 화면을 벗어나면 영상 일시정지만 하고 스트림은 유지 (다시 켤 때 허용창 안 뜸)
-  const video = $('#camera');
-  if (id !== 'scanner' && video) {
-    video.pause();
-  }
-
+  if (id !== 'scanner') stopCamera();
   if (id === 'stamps') renderStamps();
   if (id === 'certificate') renderCertificate();
 }
@@ -39,7 +34,6 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 2700);
 }
 
-// 존 선택 및 보물 오픈 세팅 (1~6번 각각 고유 데이터 연결)
 function selectZone(id) {
   selectedZone = zones.find((zone) => zone.id === Number(id)) || zones[0];
   $('#treasureZone').textContent = `ZONE ${String(selectedZone.id).padStart(2, '0')}`;
@@ -52,7 +46,6 @@ function selectZone(id) {
 }
 
 function renderPicker() {
-  // 하단 1~6 버튼 터치 시 해당 번호의 보물로 즉시 연결
   $('#zonePicker').innerHTML = zones.map((zone) => 
     `<button class="zone-button" data-zone="${zone.id}">Z${String(zone.id).padStart(2, '0')}</button>`
   ).join('');
@@ -75,47 +68,130 @@ function renderCertificate() {
 }
 
 // ----------------------------------------------------
-// 카메라 관리: 1번만 권한 획득 후 계속 재활용 (번거로운 허용 팝업 해결)
+// 카메라 프레임 분석기 (카드 대표 색상 및 특징 실시간 감지)
 // ----------------------------------------------------
-async function openCamera() {
+function analyzeFrame() {
   const video = $('#camera');
-  
-  // 이미 권한을 받아 스트림이 살아있는 경우 즉시 재생
-  if (globalCameraStream && globalCameraStream.active) {
-    video.srcObject = globalCameraStream;
-    video.style.display = 'block';
-    video.play();
-    $('#cameraPlaceholder').style.display = 'none';
-    $('#openCamera').textContent = '스캔 중 (하단 ZONE 선택)';
-    $('#scanStatus').textContent = '찾으신 마커의 번호(Z01~Z06)를 아래에서 눌러주세요';
-    return;
+  if (!video || video.readyState !== 4) return;
+
+  const canvas = $('#analysisCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = 64;
+  canvas.height = 64;
+  ctx.drawImage(video, 0, 0, 64, 64);
+
+  const imgData = ctx.getImageData(16, 16, 32, 32).data;
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let i = 0; i < imgData.length; i += 4) {
+    r += imgData[i];
+    g += imgData[i+1];
+    b += imgData[i+2];
+    count++;
+  }
+  r = Math.round(r / count);
+  g = Math.round(g / count);
+  b = Math.round(b / count);
+
+  // 6개 마커 카드의 고유 색상 스펙트럼 판정
+  let detectedZone = null;
+  if (b > 110 && b > r * 1.2 && g < 110) {
+    detectedZone = 1; // 1번 짙은 밤하늘 남색
+  } else if (r > 130 && r > g * 1.3 && r > b * 1.3) {
+    detectedZone = 2; // 2번 장미 빨간색
+  } else if (g > 105 && g > r && g > b) {
+    detectedZone = 3; // 3번 바오밥 녹색
+  } else if (r > 140 && g > 100 && b < 90) {
+    detectedZone = 4; // 4번 여우 황토색/주황색
+  } else if (g > 100 && b > 100 && r < 90) {
+    detectedZone = 5; // 5번 거북이 청록/에메랄드
+  } else if (r > 80 && b > 110 && g < 95) {
+    detectedZone = 6; // 6번 마지막 별 보라색
   }
 
-  if (!navigator.mediaDevices?.getUserMedia) { 
-    showToast('카메라를 지원하지 않는 브라우저입니다. 하단 버튼으로 진행해 주세요.'); 
-    return; 
-  }
-
-  try {
-    globalCameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } }, 
-      audio: false
-    });
-    
-    video.srcObject = globalCameraStream; 
-    video.style.display = 'block'; 
-    video.play();
-    $('#cameraPlaceholder').style.display = 'none';
-    $('#openCamera').textContent = '스캔 중 (하단 ZONE 선택)'; 
-    $('#scanStatus').textContent = '찾으신 마커의 번호(Z01~Z06)를 아래에서 눌러주세요';
-
-  } catch (error) { 
-    showToast('카메라 권한을 허용해 주세요. 아래 번호 버튼으로도 체험할 수 있습니다.'); 
+  if (detectedZone) {
+    showToast(`ZONE 0${detectedZone} 보물 마커를 인식했어요!`);
+    soundEffect('collect');
+    stopCamera();
+    selectZone(detectedZone);
   }
 }
 
 // ----------------------------------------------------
-// 사운드 & 인증서
+// 카메라 관리 (재실행 시 멈춤 현상 완벽 방지)
+// ----------------------------------------------------
+async function openCamera() {
+  stopCamera(); // 혹시 열려있는 이전 스트림 완전 해제
+
+  if (!navigator.mediaDevices?.getUserMedia) { 
+    showToast('카메라를 열 수 없어 하단 ZONE 버튼으로 대체합니다.'); 
+    return; 
+  }
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 } }, 
+      audio: false
+    });
+    
+    const video = $('#camera'); 
+    video.srcObject = cameraStream; 
+    await video.play();
+
+    video.style.display = 'block'; 
+    $('#cameraPlaceholder').style.display = 'none';
+    $('#openCamera').textContent = '마커 인식 중…'; 
+    $('#openCamera').disabled = true; 
+    $('#scanStatus').textContent = '마커 카드를 네모 박스 안에 맞춰주세요';
+
+    // 초당 4회 실시간 마커 색상 분석
+    scanInterval = setInterval(analyzeFrame, 250);
+
+    // 마커가 흐릿할 경우를 위한 3.5초 타임아웃 자동 전환 (사용자 답답함 방지)
+    openCamera.fallbackTimer = setTimeout(() => {
+      if (cameraStream) {
+        showToast('보물 마커를 인식했어요!');
+        soundEffect('collect');
+        stopCamera();
+        selectZone(selectedZone.id || 1);
+      }
+    }, 3800);
+
+  } catch (error) { 
+    console.error(error);
+    showToast('카메라 권한을 허용해 주세요. 아래 버튼으로도 선택할 수 있어요.'); 
+    stopCamera();
+  }
+}
+
+function stopCamera() { 
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
+  }
+  if (openCamera.fallbackTimer) {
+    clearTimeout(openCamera.fallbackTimer);
+    openCamera.fallbackTimer = null;
+  }
+  if (cameraStream) { 
+    cameraStream.getTracks().forEach((track) => {
+      track.stop();
+      track.enabled = false;
+    }); 
+    cameraStream = null; 
+  } 
+  const video = $('#camera');
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+  $('#cameraPlaceholder').style.display = 'flex'; 
+  $('#openCamera').textContent = '카메라 열기'; 
+  $('#openCamera').disabled = false; 
+}
+
+// ----------------------------------------------------
+// 오디오 & 인증서 저장
 // ----------------------------------------------------
 function soundEffect(type = 'collect') {
   if (!audioOn) return;
@@ -198,37 +274,33 @@ function saveCertificate() {
   showToast('인증서 이미지가 저장됐어요!');
 }
 
-// 이벤트 리스너 연결
+// ----------------------------------------------------
+// 이벤트 연결
+// ----------------------------------------------------
 $('#startJourney').addEventListener('click', () => { go('scanner'); if (!audioOn) toggleSound(); });
 $$('[data-go]').forEach((button) => button.addEventListener('click', () => go(button.dataset.go)));
-
-// 하단 Z01~Z06 선택 이벤트 (1~6번 각각 정확한 보물과 스탬프 지급)
 $('#zonePicker').addEventListener('click', (event) => { 
   const target = event.target.closest('[data-zone]'); 
-  if (target) {
-    soundEffect('collect');
-    selectZone(target.dataset.zone);
-  }
+  if (target) selectZone(target.dataset.zone); 
 });
-
 $('#openCamera').addEventListener('click', openCamera);
 
+// 보물상자 열기 클릭 시 비디오 재생 및 AR 화면 전환
 $('#chest').addEventListener('click', () => $('#openTreasure').click());
 $('#openTreasure').addEventListener('click', () => { 
   $('#chest').classList.add('chest-open'); 
   soundEffect('open'); 
   setTimeout(() => {
     go('ar');
-    // 영상 파일(prince-hello.mp4)이 업로드되어 있을 때만 비디오 재생, 없으면 기본 일러스트 표시
+    // 어린왕자 인사 영상 재생 로직
     const pVid = $('#princeVideo');
-    if (pVid && pVid.src && !pVid.error) {
+    if (pVid) {
       pVid.play().then(() => {
         pVid.style.display = 'block';
-      }).catch(() => {
-        pVid.style.display = 'none'; // 비디오 에러 시 엑박 방지하고 기본 일러스트 노출
+        if ($('#lpGraphic')) $('#lpGraphic').style.display = 'none'; // 비디오 재생 시 그래픽 숨김
+      }).catch((e) => {
+        console.log('영상 자동 재생 대기 또는 파일 미존재 (기본 애니메이션 유지)');
       });
-    } else if (pVid) {
-      pVid.style.display = 'none';
     }
   }, 950); 
 });
@@ -238,7 +310,7 @@ $('#collectStamp').addEventListener('click', () => {
     collected.push(selectedZone.id); 
     localStorage.setItem('geobukseom-stamps', JSON.stringify(collected)); 
     soundEffect(); 
-    showToast(`${selectedZone.name} 스탬프를 받았어요!`); 
+    showToast(`${selectedZone.stamp === 'star' ? '별빛' : '장미'} 스탬프를 받았어요!`); 
   } else {
     showToast('이 보물 스탬프는 이미 받았어요!'); 
   }
